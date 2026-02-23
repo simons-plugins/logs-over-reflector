@@ -4,9 +4,9 @@
 # LogsOverReflector - Exposes Indigo event log as JSON API over Reflector
 #
 # Endpoints:
-#   GET /message/com.simons-plugins.logs-over-reflector/log?lines=500&offset=0&source=X&search=Y
+#   GET /message/com.simons-plugins.logs-over-reflector/log?lines=1000&offset=0&source=X&search=Y
 #   GET /message/com.simons-plugins.logs-over-reflector/sources
-#   GET /message/com.simons-plugins.logs-over-reflector/history?date=YYYY-MM-DD&lines=500&offset=0&source=X&search=Y
+#   GET /message/com.simons-plugins.logs-over-reflector/history?date=YYYY-MM-DD&lines=20000&offset=0&source=X&search=Y
 #   GET /message/com.simons-plugins.logs-over-reflector/dates
 #
 try:
@@ -42,7 +42,7 @@ class Plugin(indigo.PluginBase):
         """Return event log entries as JSON with pagination.
 
         Query params:
-            lines  - number of entries to return (default from plugin config)
+            lines  - number of entries to return (default 1000, max 5000)
             offset - number of most-recent filtered entries to skip (for pagination)
             source - filter by TypeStr (plugin source name)
             search - text search in Message field
@@ -55,11 +55,10 @@ class Plugin(indigo.PluginBase):
             query_args = props.get("url_query_args", {})
 
             # Parse line count and offset
-            default_lines = int(self.pluginPrefs.get("defaultLineCount", 500))
             try:
-                line_count = int(query_args.get("lines", default_lines))
+                line_count = int(query_args.get("lines", 1000))
             except (ValueError, TypeError):
-                line_count = default_lines
+                line_count = 1000
             line_count = max(1, min(line_count, 5000))
 
             try:
@@ -174,7 +173,7 @@ class Plugin(indigo.PluginBase):
 
         Query params:
             date   - date in YYYY-MM-DD format (required)
-            lines  - number of entries to return (default 500, max 5000)
+            lines  - number of entries to return (default 20000, max 20000)
             offset - number of most-recent filtered entries to skip (for pagination)
             source - filter by source name
             search - text search in message field
@@ -209,12 +208,11 @@ class Plugin(indigo.PluginBase):
                 return reply
 
             # Parse parameters
-            default_lines = int(self.pluginPrefs.get("defaultLineCount", 500))
             try:
-                line_count = int(query_args.get("lines", default_lines))
+                line_count = int(query_args.get("lines", 20000))
             except (ValueError, TypeError):
-                line_count = default_lines
-            line_count = max(1, min(line_count, 5000))
+                line_count = 20000
+            line_count = max(1, min(line_count, 20000))
 
             try:
                 offset = int(query_args.get("offset", 0))
