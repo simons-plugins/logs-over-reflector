@@ -1,3 +1,6 @@
 <?xml version="1.0"?>
 <PluginConfig>
+	<Field id="info" type="label">
+		<Label>LogsOverReflector has no configuration options. It exposes the Indigo event log as a JSON API over the Reflector.</Label>
+	</Field>
 </PluginConfig>
