@@ -77,8 +77,10 @@ class Plugin(indigo.PluginBase):
             # Fetch extra entries so we can detect whether more history exists.
             # Without filters: fetch offset + lines + 1 so we can see beyond the page.
             # With filters: multiply by 3 since many raw entries may be filtered out.
-            fetch_count = (offset + line_count + 1) * (3 if has_filter else 1)
-            fetch_count = min(fetch_count, 10000)
+            RAW_FETCH_CAP = 10000
+            desired_fetch = (offset + line_count + 1) * (3 if has_filter else 1)
+            fetch_count = min(desired_fetch, RAW_FETCH_CAP)
+            fetch_capped = desired_fetch > RAW_FETCH_CAP
 
             raw_entries = indigo.server.getEventLogList(
                 returnAsList=True,
@@ -126,6 +128,14 @@ class Plugin(indigo.PluginBase):
                 "hasMore": has_more,
                 "entries": entries,
             }
+            # When we hit the raw fetch cap there may be older matching
+            # entries we never saw. hasMore=false is not authoritative in
+            # that case — the client should switch to /history for older
+            # data or narrow filters.
+            if fetch_capped:
+                result["fetchCapReached"] = True
+                if not has_more:
+                    result["hasMore"] = None
 
             reply["status"] = 200
             reply["content"] = json.dumps(result, indent=None)
@@ -138,15 +148,30 @@ class Plugin(indigo.PluginBase):
         return reply
 
     def sources(self, action, dev=None, caller_waiting_for_result=None):
-        """Return distinct log source names (TypeStr values) from recent log."""
+        """Return distinct log source names (TypeStr values) from recent log.
+
+        Query params:
+            lines - number of entries to scan for source names
+                    (default 5000, max 20000). Low-frequency sources that
+                    have not emitted within the scanned window will not
+                    appear — raise `lines` to find them.
+        """
         reply = indigo.Dict()
         reply["headers"] = indigo.Dict({"Content-Type": "application/json"})
 
         try:
+            props = dict(action.props)
+            query_args = props.get("url_query_args", {})
+            try:
+                line_count = int(query_args.get("lines", 5000))
+            except (TypeError, ValueError):
+                line_count = 5000
+            line_count = max(100, min(line_count, 20000))
+
             raw_entries = indigo.server.getEventLogList(
                 returnAsList=True,
                 showTimeStamp=True,
-                lineCount=2000,
+                lineCount=line_count,
             )
 
             source_set = set()
